@@ -950,6 +950,167 @@ class SafirOption {
         SafirOption.registry[selector] = options;
     }
 }
+class SafirRequestStateListener {
+
+    constructor(request) {
+        this.request = request;
+        this.xhr = request.xhr;
+    }
+
+    onChange(state) {
+
+        switch (state) {
+            case XMLHttpRequest.OPENED:
+                // request headers can be updated here
+                for (const header in this.request.headers) {
+                    this.xhr.setRequestHeader(header, this.request.headers[header]);
+                }
+                break;
+            case XMLHttpRequest.HEADERS_RECEIVED:
+                if (this.request.response_handlers.length > 0) {
+                    for (let i in this.request.response_handlers) {
+                        let handler = this.request.response_handlers[i];
+                        if (handler.on_http_sent) {
+                            handler.on_http_sent.call(handler);
+                        }
+                    }
+                }
+                break;
+            case XMLHttpRequest.LOADING:
+                break;
+            case XMLHttpRequest.DONE:
+
+                if (this.request.response_handlers.length > 0) {
+
+                    let response_json = null;
+                    for (let i in this.request.response_handlers) {
+                        let handler = this.request.response_handlers[i];
+                        if (handler) {
+
+                            try {
+                                response_json = JSON.parse(this.xhr.responseText);
+                            } catch (error) {
+                                console.log(error);
+                            }
+
+                            if (this.xhr.status >= 200 && this.xhr.status < 400) {
+                                if (handler.on_http_success) {
+                                    handler.on_http_success.call(handler, this.xhr.status, response_json, this.xhr.responseText);
+                                }
+
+                            } else if (this.xhr.status >= 400) {
+                                if (handler.on_http_error) {
+                                    handler.on_http_error.call(handler, this.xhr.status, response_json, this.xhr.responseText);
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+        }
+    }
+}
+
+class SafirUploadRequestListener {
+    constructor(request) {
+        this.request = request;
+        this.xhr = request.xhr;
+        this.xhr.upload.onprogress = this.onProgress.bind(this);
+        this.xhr.upload.onabort = this.onAbort.bind(this);
+        this.xhr.upload.onerror = this.onError.bind(this);
+        this.xhr.upload.ontimeout = this.onTimeout.bind(this);
+    }
+
+    onProgress(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler) {
+                if(handler.on_upload_progress) {
+                    handler.on_upload_progress.call(handler, event);
+                } else if(handler.on_progress) {
+                    handler.on_progress.call(handler, event);
+                }
+            }
+        }
+    }
+
+    onAbort(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler && handler.on_abort) {
+                handler.on_abort.call(handler, event);
+            }
+        }
+    }
+
+    onError(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler && handler.on_http_error) {
+                handler.on_http_error.call(handler, event);
+            }
+        }
+    }
+
+    onTimeout(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler && handler.on_timeout) {
+                handler.on_timeout.call(handler, event);
+            }
+        }
+    }
+}
+class SafirDownloadRequestListener {
+    constructor(request) {
+        this.request = request;
+        this.xhr = request.xhr;
+        this.xhr.onprogress = this.onProgress.bind(this);
+        this.xhr.onabort = this.onAbort.bind(this);
+        this.xhr.onerror = this.onError.bind(this);
+        this.xhr.ontimeout = this.onTimeout.bind(this);
+    }
+
+    onProgress(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler) {
+                if(handler.on_download_progress) {
+                    handler.on_download_progress.call(handler, event);
+                } else if(handler.on_progress) {
+                    handler.on_progress.call(handler, event);
+                }
+            }
+        }
+    }
+
+    onAbort(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler && handler.on_abort) {
+                handler.on_abort.call(handler, event);
+            }
+        }
+    }
+
+    onError(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler && handler.on_http_error) {
+                handler.on_http_error.call(handler, event);
+            }
+        }
+    }
+
+    onTimeout(event) {
+        for (let i in this.request.response_handlers) {
+            let handler = this.request.response_handlers[i];
+            if (handler && handler.on_timeout) {
+                handler.on_timeout.call(handler, event);
+            }
+        }
+    }
+}
 class SafirHttpRequest extends SafirObject {
 
     method = 'post';
@@ -965,10 +1126,32 @@ class SafirHttpRequest extends SafirObject {
         this.options = new SafirOption(options);
         options = this.options.getOptions();
 
+        this.xhr = new XMLHttpRequest();
+        this.xhr.withCredentials = true;
+        this.xhr.onreadystatechange = this.onStateChanged.bind(this);
+        this.xhr.onerror = this.onError.bind(this);
+
+        this.state_listener = new SafirRequestStateListener(this);
+        this.upload_listener = new SafirUploadRequestListener(this);
+        this.download_listener = new SafirDownloadRequestListener(this);
+
         if (options.hasOwnProperty('response_handlers')) {
             for (const i in options.response_handlers) {
                 let handler = options.response_handlers[i];
                 this.registerResponseHandler(handler);
+            }
+        }
+    }
+
+    onStateChanged(){
+        this.state_listener.onChange(this.xhr.readyState);
+    }
+
+    onError() {
+        for (let i in this.response_handlers) {
+            let handler = this.response_handlers[i];
+            if (handler && handler.on_network_error) {
+                handler.on_network_error.call(handler, data);
             }
         }
     }
@@ -979,10 +1162,6 @@ class SafirHttpRequest extends SafirObject {
         } catch (e) {
             this.response_handlers.push(handler);
         }
-    }
-
-    clearHandlers() {
-        this.response_handlers = [];
     }
 
     /**
@@ -1004,69 +1183,27 @@ class SafirHttpRequest extends SafirObject {
      */
     send(data) {
 
-        const method = this.method.toUpperCase();
-
         let url = this.url;
-        let request_option = {method: method};
-        if (method === 'GET' || method === 'HEAD') {
-            if (data !== undefined) {
+        let method = this.method.toUpperCase();
+
+        if(this.xhr.readyState !== XMLHttpRequest.OPENED) {
+            if(method === 'GET' && data !== undefined) {
                 let queryString = this.toQueryString(data);
-                if (queryString) {
+                if(queryString) {
                     url = url + '?' + queryString;
                 }
             }
+            this.xhr.open(this.method, url, true);
+        }
+
+        if(method === 'GET') {
+            this.xhr.send();
         } else {
-            if (!(data instanceof FormData)) {
-                data = JSON.stringify(data);
+            if(data instanceof SafirRequestData) {
+                data = data.toFormData();
             }
-            request_option['body'] = data;
+            this.xhr.send(data);
         }
-
-        const request = new Request(url, request_option);
-
-        for (const header in this.headers) {
-            request.headers.append(header, this.headers[header]);
-        }
-
-        let l_request = this;
-        let fetch_response = null;
-
-        for (let i in l_request.response_handlers) {
-            let handler = l_request.response_handlers[i];
-            if (handler && handler.on_http_sent) {
-                handler.on_http_sent.call(handler);
-            }
-        }
-
-        fetch(request)
-            .then(response => {
-                fetch_response = response;
-                return response.json();
-            }).then(json_response => {
-            if (fetch_response.ok) {
-                for (let i in l_request.response_handlers) {
-                    let handler = l_request.response_handlers[i];
-                    if (handler && handler.on_http_success) {
-                        handler.on_http_success.call(handler, fetch_response.status, json_response, fetch_response);
-                    }
-                }
-            } else {
-                for (let i in l_request.response_handlers) {
-                    let handler = l_request.response_handlers[i];
-                    if (handler && handler.on_http_error) {
-                        handler.on_http_error.call(handler, fetch_response.status, json_response, fetch_response);
-                    }
-                }
-            }
-        })
-            .catch((error) => {
-                for (let i in l_request.response_handlers) {
-                    let handler = l_request.response_handlers[i];
-                    if (handler && handler.on_network_error) {
-                        handler.on_network_error.call(handler, data);
-                    }
-                }
-            });
     }
 
     toQueryString(data) {
@@ -1107,10 +1244,6 @@ class SafirSecureHttpRequest extends SafirHttpRequest {
             console.warn('[secure-token] META not found in page header');
         }
     }
-}
-
-class SafirHttpHandler {
-
 }
 
 class SafirRequestData {
@@ -1194,6 +1327,8 @@ class SafirRequestData {
         });
     };
 }
+
+
 /**
  * Handle element than can be targeted by events
  * @class SafirEventTarget
@@ -1227,7 +1362,7 @@ class SafirEventTarget extends SafirObject {
                 SafirEventTarget.registry.set(this.elt.id, this);
             }
         } else {
-            console.error('SafirEventTarget', 'Element with selector [' + selector + '] not found');
+            console.warn('SafirEventTarget', 'Element with selector [' + selector + '] not found');
         }
     }
 
@@ -1281,7 +1416,9 @@ class SafirEventTarget extends SafirObject {
 class SafirElement extends SafirEventTarget {
     constructor(selector) {
         super(selector);
-        this.elt.setAttributeNS(SafirTemplate.namespace, SafirTemplate.prefix + ':view', true);
+        if(this.elt) {
+            this.elt.setAttributeNS(SafirTemplate.namespace, SafirTemplate.prefix + ':view', true);
+        }
     }
 }
 
@@ -1793,6 +1930,20 @@ class SafirModal {
     backgroundEventListener(event) {
         if(event.target == this.element) {
             this.close();
+        }
+    }
+}
+class SafirProgressBar extends SafirElement {
+
+    constructor(selector) {
+        super(selector);
+    }
+
+    on_progress(event) {
+        if(this.elt) {
+            let percent_completed = (event.loaded / event.total) * 100;
+            this.elt.style.width = percent_completed + '%';
+            console.log('percent_completed', percent_completed);
         }
     }
 }

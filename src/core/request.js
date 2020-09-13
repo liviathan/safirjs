@@ -16,6 +16,11 @@ class SafirHttpRequest extends SafirObject {
         this.xhr = new XMLHttpRequest();
         this.xhr.withCredentials = true;
         this.xhr.onreadystatechange = this.onStateChanged.bind(this);
+        this.xhr.onerror = this.onError.bind(this);
+
+        this.state_listener = new SafirRequestStateListener(this);
+        this.upload_listener = new SafirUploadRequestListener(this);
+        this.download_listener = new SafirDownloadRequestListener(this);
 
         if (options.hasOwnProperty('response_handlers')) {
             for (const i in options.response_handlers) {
@@ -26,7 +31,16 @@ class SafirHttpRequest extends SafirObject {
     }
 
     onStateChanged(){
-        this.dispatchState(this.xhr.readyState, this.xhr);
+        this.state_listener.onChange(this.xhr.readyState);
+    }
+
+    onError() {
+        for (let i in this.response_handlers) {
+            let handler = this.response_handlers[i];
+            if (handler && handler.on_network_error) {
+                handler.on_network_error.call(handler, data);
+            }
+        }
     }
 
     registerResponseHandler(handler) {
@@ -35,10 +49,6 @@ class SafirHttpRequest extends SafirObject {
         } catch (e) {
             this.response_handlers.push(handler);
         }
-    }
-
-    clearHandlers() {
-        this.response_handlers = [];
     }
 
     /**
@@ -60,69 +70,27 @@ class SafirHttpRequest extends SafirObject {
      */
     send(data) {
 
-        const method = this.method.toUpperCase();
-
         let url = this.url;
-        let request_option = {method: method};
-        if (method === 'GET' || method === 'HEAD') {
-            if (data !== undefined) {
+        let method = this.method.toUpperCase();
+
+        if(this.xhr.readyState !== XMLHttpRequest.OPENED) {
+            if(method === 'GET' && data !== undefined) {
                 let queryString = this.toQueryString(data);
-                if (queryString) {
+                if(queryString) {
                     url = url + '?' + queryString;
                 }
             }
+            this.xhr.open(this.method, url, true);
+        }
+
+        if(method === 'GET') {
+            this.xhr.send();
         } else {
-            if (!(data instanceof FormData)) {
-                data = JSON.stringify(data);
+            if(data instanceof SafirRequestData) {
+                data = data.toFormData();
             }
-            request_option['body'] = data;
+            this.xhr.send(data);
         }
-
-        const request = new Request(url, request_option);
-
-        for (const header in this.headers) {
-            request.headers.append(header, this.headers[header]);
-        }
-
-        let l_request = this;
-        let fetch_response = null;
-
-        for (let i in l_request.response_handlers) {
-            let handler = l_request.response_handlers[i];
-            if (handler && handler.on_http_sent) {
-                handler.on_http_sent.call(handler);
-            }
-        }
-
-        fetch(request)
-            .then(response => {
-                fetch_response = response;
-                return response.json();
-            }).then(json_response => {
-            if (fetch_response.ok) {
-                for (let i in l_request.response_handlers) {
-                    let handler = l_request.response_handlers[i];
-                    if (handler && handler.on_http_success) {
-                        handler.on_http_success.call(handler, fetch_response.status, json_response, fetch_response);
-                    }
-                }
-            } else {
-                for (let i in l_request.response_handlers) {
-                    let handler = l_request.response_handlers[i];
-                    if (handler && handler.on_http_error) {
-                        handler.on_http_error.call(handler, fetch_response.status, json_response, fetch_response);
-                    }
-                }
-            }
-        })
-            .catch((error) => {
-                for (let i in l_request.response_handlers) {
-                    let handler = l_request.response_handlers[i];
-                    if (handler && handler.on_network_error) {
-                        handler.on_network_error.call(handler, data);
-                    }
-                }
-            });
     }
 
     toQueryString(data) {
@@ -163,10 +131,6 @@ class SafirSecureHttpRequest extends SafirHttpRequest {
             console.warn('[secure-token] META not found in page header');
         }
     }
-}
-
-class SafirHttpHandler {
-
 }
 
 class SafirRequestData {
@@ -250,3 +214,4 @@ class SafirRequestData {
         });
     };
 }
+

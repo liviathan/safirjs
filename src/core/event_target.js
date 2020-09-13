@@ -31,7 +31,7 @@ class SafirEventTarget extends SafirObject {
                 SafirEventTarget.registry.set(this.elt.id, this);
             }
         } else {
-            console.error('SafirEventTarget', 'Element with selector [' + selector + '] not found');
+            console.warn('SafirEventTarget', 'Element with selector [' + selector + '] not found');
         }
     }
 

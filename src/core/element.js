@@ -6,7 +6,9 @@
 class SafirElement extends SafirEventTarget {
     constructor(selector) {
         super(selector);
-        this.elt.setAttributeNS(SafirTemplate.namespace, SafirTemplate.prefix + ':view', true);
+        if(this.elt) {
+            this.elt.setAttributeNS(SafirTemplate.namespace, SafirTemplate.prefix + ':view', true);
+        }
     }
 }
 
