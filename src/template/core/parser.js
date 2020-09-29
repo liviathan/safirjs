@@ -64,12 +64,12 @@ class SafirTemplateParser {
             case Node.TEXT_NODE:
                 let text = dom.textContent.trim();
                 if (text.length > 0) {
-                    node.content = text;
+                    node.innerHTML = text;
                     parent.addChild(node);
                 }
                 break;
             case Node.CDATA_SECTION_NODE:
-                node.content = dom.nodeValue;
+                node.innerHTML = dom.nodeValue;
                 parent.addChild(node);
                 break;
         }

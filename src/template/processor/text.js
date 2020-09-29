@@ -14,8 +14,16 @@ class SafirTextProcessor extends SafirBaseProcessor {
 
 class SafirTextElementProcessor extends SafirTextProcessor {
     process(node, target, parent_processor) {
-        let child = document.createTextNode(this.evalString(node.content, node))
-        target.appendChild(child);
+        let components = node.content.split(/\r?\n/);
+        for(let i = 0; i < components.length; i++) {
+            let text = components[i];
+            let child = document.createTextNode(this.evalString(text, node));
+            target.appendChild(child);
+            if(i < components.length - 1) {
+                let child = document.createElement('br');
+                target.appendChild(child);
+            }
+        }
     }
 }
 

@@ -16,16 +16,17 @@ class SafirFormHandler {
      * @param errors
      */
     showFormGroupErrors(errors) {
-        let groups = this.elt.querySelectorAll('.form-group');
+        let fields = this.elt.querySelectorAll('.form-control');
 
-        groups.forEach(function(group){
-            group.classList.remove('has-error');
+        fields.forEach(function(field){
+            field.classList.remove('is-valid');
+            field.classList.remove('is-invalid');
         });
 
-        let error_containers = this.elt.querySelectorAll('.error-container');
+        let feedback_containers = this.elt.querySelectorAll('.invalid-feedback');
 
-        error_containers.forEach(function(container){
-            container.classList.add('hidden');
+        feedback_containers.forEach(function(container){
+            container.classList.add('d-none');
         });
 
         for (let field in errors) {
@@ -36,22 +37,43 @@ class SafirFormHandler {
     }
 
     showFieldErrors(field, errors) {
+
         //find parent group
-        let parent = field.closest('.form-group', this.elt);
-        if (parent) {
-
-            let container = parent.querySelector('.error-container');
-            if(!container) {
-                container = document.createElement('p');
-                container.classList.add('error-container');
-                container.classList.remove('hidden');
-                parent.append(container);
-            } else {
-                container.classList.remove('hidden');
-            }
-
-            parent.classList.add('has-error');
-            container.innerHTML = errors[field.name].join(', ');
+        let feedback_container = this.getFeedbackContainer(field);
+        if(!feedback_container) {
+            feedback_container = document.createElement('div');
+            feedback_container.classList.add('invalid-feedback');
+            let parent = field.parentNode;
+            parent.append(feedback_container);
+        } else {
+            feedback_container.classList.remove('d-none');
         }
+
+        console.log(feedback_container);
+
+        field.classList.add('is-invalid');
+        feedback_container.innerHTML = errors[field.name].join(', ');
+    }
+
+    getFeedbackContainer(field) {
+        let parent = field.parentNode;
+        let children = parent.childNodes;
+
+        let feedback_container = undefined;
+
+        for (let i=0; i < children.length; i++) {
+            console.log(children[i]);
+            let elt = children[i];
+            if (elt.classList && elt.classList.contains('invalid-feedback')) {
+                feedback_container = children[i];
+                break;
+            }
+        }
+
+        if(feedback_container === undefined) {
+
+        }
+
+        return feedback_container;
     }
 }

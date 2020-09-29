@@ -41,7 +41,6 @@ class SafirTemplate {
                     , 'color:red;', 'color:black;', 'color:blue; font-weight:bold;', 'color:black;');
             }
         }
-
         this.node = parser.parse(this.tpl_element);
     }
 

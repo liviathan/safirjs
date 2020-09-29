@@ -43,9 +43,9 @@ class SafirHttpRequest extends SafirObject {
         }
     }
 
-    registerResponseHandler(handler) {
+    registerResponseHandler(handler, selector) {
         try {
-            this.response_handlers.push(Reflect.construct(handler, []));
+            this.response_handlers.push(Reflect.construct(handler, [selector]));
         } catch (e) {
             this.response_handlers.push(handler);
         }

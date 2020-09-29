@@ -12,7 +12,7 @@ safir.core = {
 
     init: function (parent) {
 
-        let elements = parent.querySelectorAll('[' + SafirTemplate.prefix + '\\:listener]');
+        let elements = parent.querySelectorAll(':not(form)[' + SafirTemplate.prefix + '\\:listener]');
 
         elements.forEach(function (elt) {
             if (elt.tagName !== 'TEMPLATE') {
@@ -57,7 +57,7 @@ safir.core = {
                 for (let i = 0; i < handlers.length; i++) {
                     let handler = SafirRegistry.get(handlers[i]);
                     if (handler !== null) {
-                        form.request.registerResponseHandler(handler);
+                        form.request.registerResponseHandler(handler, elt);
                     } else {
                         console.error('Handler not found', handlers[i]);
                     }
@@ -66,7 +66,7 @@ safir.core = {
 
             if (form !== null) {
                 // Finally add some default handler
-                form.request.registerResponseHandler(SafirRedirectHandler);
+                form.request.registerResponseHandler(SafirRedirectHandler, form);
             }
         });
 

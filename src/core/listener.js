@@ -5,7 +5,6 @@
  */
 
 class SafirEventListener extends SafirObject {
-
     /**
      *
      * @param selector

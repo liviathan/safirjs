@@ -1,4 +1,5 @@
 class SafirForm extends SafirElement {
+
     constructor(selector, request) {
         super(selector);
         if (request !== undefined) {
@@ -9,6 +10,18 @@ class SafirForm extends SafirElement {
 
         this.request.prepare(this.elt.method || 'post', this.elt.action);
         this.addEventListener(SafirFormListener);
+
+        // let listener_attr = this.elt.attributes.getNamedItem(SafirTemplate.prefix + ':listener');
+        // if(!listener_attr) {
+        //
+        // } else {
+        //     let attr_name = SafirTemplate.prefix + ':listener';
+        //     let attr = this.elt.getAttribute(attr_name);
+        //     console.log('attr', attr);
+        //     let listener = SafirRegistry.get(attr);
+        //     this.addEventListener(listener);
+        // }
+        // console.log(this);
     }
 
     submit() {
@@ -24,7 +37,7 @@ class SafirSecureForm extends SafirForm {
 }
 
 class SafirFormListener extends SafirEventListener {
-    on_submit(event) {
+    on_submit(event, target) {
         event.preventDefault();
         this.target.submit();
     }

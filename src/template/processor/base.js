@@ -17,7 +17,12 @@ class SafirBaseProcessor {
                 value = value.replace(match, context_value);
             }
         }
-        return (value !== undefined) ? value : original_value;
+        return (value !== undefined) ? this.nl2br(value) : original_value;
+    }
+
+    nl2br (string) {
+        let breakTag = '<br/>';
+        return (string + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1'+ breakTag +'$2');
     }
 }
 
